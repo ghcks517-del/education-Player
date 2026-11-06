@@ -1,6 +1,7 @@
 import React from 'react';
 import { RotateCcw, Download, Upload } from 'lucide-react';
 import { HanwhaLogo } from './HanwhaLogo';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   onOpenCreateVideo?: () => void;
@@ -59,6 +60,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Actions (Data Options & Primary CTA) */}
         <div className="flex items-center gap-2.5 shrink-0">
+          {/* Tablet PWA Install Button */}
+          <PWAInstallButton />
           {/* Data Management Menu Toggle */}
           <div className="relative">
             <button

@@ -36,6 +36,7 @@ import { LectureNotes } from './components/LectureNotes';
 import { CategoryModal } from './components/CategoryModal';
 import { VideoModal } from './components/VideoModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   // Main Data States
@@ -628,6 +629,9 @@ export default function App() {
         }
         confirmButtonText="삭제"
       />
+
+      {/* Offline Status Toast */}
+      <OfflineIndicator />
     </div>
   );
 }
