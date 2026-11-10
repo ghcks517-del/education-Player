@@ -37,6 +37,7 @@ import { CategoryModal } from './components/CategoryModal';
 import { VideoModal } from './components/VideoModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { DataPersistenceModal } from './components/DataPersistenceModal';
 
 export default function App() {
   // Main Data States
@@ -62,6 +63,7 @@ export default function App() {
 
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [videoToEdit, setVideoToEdit] = useState<VideoItem | null>(null);
+  const [isPersistenceModalOpen, setIsPersistenceModalOpen] = useState(false);
 
   const [deleteConfirmState, setDeleteConfirmState] = useState<{
     isOpen: boolean;
@@ -287,12 +289,12 @@ export default function App() {
   };
 
   const handleResetData = () => {
-    if (confirm('기본 한화 교안 샘플 데이터로 초기화하시겠습니까? 현재 작성된 데이터는 대체됩니다.')) {
+    if (confirm('기본 안전 교육 영상 데이터로 초기화하시겠습니까? 현재 작성된 데이터는 대체됩니다.')) {
       const fresh = resetAllData();
       setCategories(fresh.categories);
       setVideos(fresh.videos);
       setActiveVideoId(fresh.videos[0]?.id || null);
-      showToast('초기 한화 교안 데이터로 리셋되었습니다.');
+      showToast('초기 안전 교육 영상 데이터로 리셋되었습니다.');
     }
   };
 
@@ -314,6 +316,7 @@ export default function App() {
         onResetData={handleResetData}
         onExportData={handleExportData}
         onImportData={handleTriggerImport}
+        onOpenPersistenceModal={() => setIsPersistenceModalOpen(true)}
         completedCount={completedCount}
         totalCount={videos.length}
       />
@@ -628,6 +631,20 @@ export default function App() {
             : undefined
         }
         confirmButtonText="삭제"
+      />
+
+      {/* Data Persistence and Permanent Code Sync Modal */}
+      <DataPersistenceModal
+        isOpen={isPersistenceModalOpen}
+        onClose={() => setIsPersistenceModalOpen(false)}
+        categories={categories}
+        videos={videos}
+        onDataImported={(newCats, newVids) => {
+          setCategories(newCats);
+          setVideos(newVids);
+          setActiveVideoId(newVids[0]?.id || null);
+          showToast('교안 데이터가 성공적으로 반영되었습니다.');
+        }}
       />
 
       {/* Offline Status Toast */}

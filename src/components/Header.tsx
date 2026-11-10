@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Download, Upload } from 'lucide-react';
+import { RotateCcw, Download, Upload, Database } from 'lucide-react';
 import { HanwhaLogo } from './HanwhaLogo';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -9,6 +9,7 @@ interface HeaderProps {
   onResetData: () => void;
   onExportData: () => void;
   onImportData: () => void;
+  onOpenPersistenceModal: () => void;
   completedCount: number;
   totalCount: number;
 }
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onResetData,
   onExportData,
   onImportData,
+  onOpenPersistenceModal,
   completedCount,
   totalCount,
 }) => {
@@ -80,6 +82,17 @@ export const Header: React.FC<HeaderProps> = ({
                 className="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 min-w-[190px] space-y-1 animate-in fade-in zoom-in-95 duration-150"
                 onClick={(e) => e.stopPropagation()}
               >
+                <button
+                  onClick={() => {
+                    setShowSettingsMenu(false);
+                    onOpenPersistenceModal();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#F37321] hover:bg-orange-50 rounded-lg transition-colors text-left"
+                >
+                  <Database className="w-4 h-4 text-[#F37321]" />
+                  <span>교안 영구 보존 &amp; 소스 복사</span>
+                </button>
+                <div className="border-t border-slate-100 my-1" />
                 <button
                   onClick={() => {
                     setShowSettingsMenu(false);

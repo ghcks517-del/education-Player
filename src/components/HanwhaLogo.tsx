@@ -57,12 +57,12 @@ export const HanwhaLogo: React.FC<HanwhaLogoProps> = ({
             <span className="font-extrabold tracking-tight text-[#F37321] font-sans text-base lg:text-lg">
               Momentum
             </span>
-            <span className="text-[10px] font-bold text-slate-600 tracking-wider uppercase ml-1 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              EduPlayer
+            <span className="text-[10px] font-bold text-amber-700 tracking-wider uppercase ml-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200">
+              안전 교육
             </span>
           </div>
           <span className="text-[11px] text-slate-500 font-medium tracking-tight mt-1">
-            한화모멘텀 동영상 교안 플레이어
+            한화모멘텀 안전 교육 영상 플레이어
           </span>
         </div>
       )}

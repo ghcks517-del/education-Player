@@ -1,43 +1,93 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
+    <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="100%" stop-color="#F8FAFC" />
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.08" />
+
+    <!-- TV Screen Gradient (Hanwha Signature Warm Orange) -->
+    <linearGradient id="screenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7A1A" />
+      <stop offset="50%" stop-color="#F37321" />
+      <stop offset="100%" stop-color="#D92D20" />
+    </linearGradient>
+
+    <!-- Metallic Antenna Gradient -->
+    <linearGradient id="antennaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8" />
+      <stop offset="100%" stop-color="#64748B" />
+    </linearGradient>
+
+    <!-- Subtle Screen Glare -->
+    <linearGradient id="glareGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25" />
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#F37321" flood-opacity="0.35" />
     </filter>
   </defs>
-  <!-- Background Container -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" stroke="#E2E8F0" stroke-width="8" />
-  
-  <!-- Subtle Hanwha Orange Accent Bar at Top -->
-  <path d="M120 40 L392 40" stroke="#F37321" stroke-width="6" stroke-linecap="round" opacity="0.9" />
 
-  <!-- Authentic Hanwha 3-Ring Emblem (Centered and Scaled) -->
-  <g transform="translate(96, 120) scale(4.9)">
-    <!-- Ring 3: Soft warm apricot gold ring (Top-right) -->
-    <path
-      fill="#FBB584"
-      d="M23.08,29.06c-.81-7.37,6.92-13.28,17.25-13.2,10.34,.08,19.38,6.12,20.19,13.48,.81,7.38-6.91,13.28-17.25,13.2-10.34-.08-19.38-6.11-20.19-13.48m39.37,2.28c-.94-9.14-11.34-16.62-23.24-16.72-11.91-.1-20.8,7.23-19.86,16.37,.94,9.14,11.34,16.63,23.24,16.73,11.9,.09,20.8-7.23,19.86-16.38"
-    />
-    <!-- Ring 2: Medium warm orange ring (Bottom-right) -->
-    <path
-      fill="#F89B6C"
-      d="M44.48,47.9c-5.86,6.13-15.27,6.64-21.02,1.14-5.75-5.5-5.65-14.92,.22-21.04,5.86-6.12,15.28-6.63,21.01-1.14,5.74,5.5,5.65,14.92-.22,21.04M22.77,27.8c-6.81,7.12-6.92,18.07-.25,24.46,6.67,6.39,17.62,5.8,24.43-1.32,6.82-7.12,6.93-18.07,.25-24.46-6.67-6.39-17.61-5.8-24.43,1.32"
-    />
-    <!-- Ring 1: Hanwha Signature Core Orange ring (Dominant center) -->
-    <path
-      fill="#F37321"
-      d="M23.39,4.88c12.19-4.57,24.25,.05,26.93,10.32,2.68,10.28-5.03,22.3-17.22,26.87-12.19,4.58-24.25-.05-26.93-10.32C3.48,21.48,11.2,9.45,23.39,4.88m-11.33,3.92C-.58,18.82-3.8,33.33,4.87,41.21c8.67,7.89,25.96,6.16,38.61-3.86,12.65-10.01,15.87-24.52,7.19-32.41C42-2.94,24.71-1.21,12.06,8.8"
-    />
+  <!-- Squircle Base Frame -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" stroke="#334155" stroke-width="6" />
+
+  <!-- TV Antennas -->
+  <!-- Left Antenna -->
+  <line x1="216" y1="116" x2="148" y2="48" stroke="url(#antennaGrad)" stroke-width="12" stroke-linecap="round" />
+  <circle cx="144" cy="44" r="12" fill="#F37321" stroke="#FFFFFF" stroke-width="3" />
+
+  <!-- Right Antenna -->
+  <line x1="296" y1="116" x2="364" y2="48" stroke="url(#antennaGrad)" stroke-width="12" stroke-linecap="round" />
+  <circle cx="368" cy="44" r="12" fill="#F37321" stroke="#FFFFFF" stroke-width="3" />
+
+  <!-- TV Antenna Base Hub -->
+  <ellipse cx="256" cy="118" rx="36" ry="12" fill="#334155" />
+
+  <!-- TV Body (Main Casing) -->
+  <rect x="68" y="112" width="376" height="272" rx="36" fill="#1E293B" stroke="#475569" stroke-width="8" filter="url(#glow)" />
+
+  <!-- TV Screen Bezel -->
+  <rect x="92" y="134" width="276" height="228" rx="22" fill="#020617" stroke="#334155" stroke-width="4" />
+
+  <!-- TV Display / Screen (Vibrant Orange Glow) -->
+  <rect x="100" y="142" width="260" height="212" rx="16" fill="url(#screenGrad)" />
+
+  <!-- Screen Diagonal Glare Effect -->
+  <path d="M100 142 L240 142 L120 354 L100 354 Z" fill="url(#glareGrad)" />
+
+  <!-- TV Screen Content: Video Play Icon (▶) with Safety Star Accent -->
+  <g transform="translate(230, 248)">
+    <!-- Play Triangle -->
+    <polygon points="-24,-34 36,0 -24,34" fill="#FFFFFF" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.3))" />
   </g>
 
-  <!-- Typography at bottom: MOMENTUM -->
-  <text x="256" y="420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif" font-size="34" font-weight="800" text-anchor="middle" fill="#0F172A" letter-spacing="4">
-    HANWHA
-  </text>
-  <text x="256" y="455" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="#F37321" letter-spacing="3">
-    MOMENTUM
+  <!-- TV Right Panel: Speaker & Controls -->
+  <g transform="translate(382, 140)">
+    <!-- Knob 1 (Channel) -->
+    <circle cx="28" cy="28" r="18" fill="#334155" stroke="#64748B" stroke-width="3" />
+    <circle cx="28" cy="28" r="6" fill="#F37321" />
+
+    <!-- Knob 2 (Volume) -->
+    <circle cx="28" cy="78" r="18" fill="#334155" stroke="#64748B" stroke-width="3" />
+    <circle cx="28" cy="78" r="6" fill="#F37321" />
+
+    <!-- Speaker Grille Slots -->
+    <rect x="10" y="128" width="36" height="6" rx="3" fill="#334155" />
+    <rect x="10" y="144" width="36" height="6" rx="3" fill="#334155" />
+    <rect x="10" y="160" width="36" height="6" rx="3" fill="#334155" />
+    <rect x="10" y="176" width="36" height="6" rx="3" fill="#334155" />
+    <rect x="10" y="192" width="36" height="6" rx="3" fill="#334155" />
+  </g>
+
+  <!-- TV Stand Legs -->
+  <polygon points="120,384 100,432 136,432 148,384" fill="#334155" stroke="#1E293B" stroke-width="3" />
+  <polygon points="392,384 412,432 376,432 364,384" fill="#334155" stroke="#1E293B" stroke-width="3" />
+
+  <!-- Bottom App Name Label -->
+  <text x="256" y="474" font-family="-apple-system, BlinkMacSystemFont, 'Noto Sans KR', 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" text-anchor="middle" fill="#F8FAFC" letter-spacing="1">
+    안전 교육 영상
   </text>
 </svg>

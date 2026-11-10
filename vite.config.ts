@@ -14,9 +14,9 @@ export default defineConfig(() => {
         includeAssets: ['favicon-32x32.png', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: '한화모멘텀 동영상 교안 플레이어',
-          short_name: '한화 교안',
-          description: '유튜브 링크 기반의 직관적인 동영상 교안 학습 및 분류 관리 웹앱',
+          name: '안전 교육 영상',
+          short_name: '안전 교육 영상',
+          description: '한화모멘텀 안전 교육 영상 플레이어',
           theme_color: '#F37321',
           background_color: '#F8FAFC',
           display: 'standalone',
