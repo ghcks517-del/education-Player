@@ -19,6 +19,7 @@ export interface VideoItem {
   watched?: boolean;
   notes?: VideoNote[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Category {

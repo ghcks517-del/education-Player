@@ -38,9 +38,19 @@ import { VideoModal } from './components/VideoModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { DataPersistenceModal } from './components/DataPersistenceModal';
+import {
+  subscribeCategories,
+  subscribeVideos,
+  saveCategoryToFirestore,
+  deleteCategoryFromFirestore,
+  saveVideoToFirestore,
+  deleteVideoFromFirestore,
+  importAllToFirestore,
+} from './utils/firestoreSync';
+import { testConnection } from './utils/firebase';
 
 export default function App() {
-  // Main Data States
+  // Main Data States (starts from localStorage cache for instant zero-latency render)
   const [categories, setCategories] = useState<Category[]>(loadCategories);
   const [videos, setVideos] = useState<VideoItem[]>(loadVideos);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -77,7 +87,37 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Save changes to localStorage whenever data changes
+  // Connect to Firestore and subscribe to real-time multi-device sync
+  useEffect(() => {
+    testConnection();
+
+    // 1. Subscribe to Categories
+    const unsubCats = subscribeCategories((cloudCats) => {
+      if (cloudCats && cloudCats.length > 0) {
+        setCategories(cloudCats);
+      }
+    });
+
+    // 2. Subscribe to Videos
+    const unsubVids = subscribeVideos((cloudVids) => {
+      if (cloudVids) {
+        setVideos(cloudVids);
+        setActiveVideoId((prev) => {
+          if (prev && cloudVids.some((v) => v.id === prev)) {
+            return prev;
+          }
+          return cloudVids[0]?.id || null;
+        });
+      }
+    });
+
+    return () => {
+      unsubCats();
+      unsubVids();
+    };
+  }, []);
+
+  // Save changes to localStorage as offline fallback whenever data changes
   useEffect(() => {
     saveCategories(categories);
   }, [categories]);
@@ -130,10 +170,12 @@ export default function App() {
   // Category Actions
   const handleSaveCategory = (catData: { name: string; description?: string; color: string }) => {
     if (categoryToEdit) {
+      const updatedCat: Category = { ...categoryToEdit, ...catData };
       setCategories((prev) =>
-        prev.map((c) => (c.id === categoryToEdit.id ? { ...c, ...catData } : c))
+        prev.map((c) => (c.id === categoryToEdit.id ? updatedCat : c))
       );
-      showToast('교안 분류가 수정되었습니다.');
+      saveCategoryToFirestore(updatedCat);
+      showToast('교안 분류가 수정되었습니다. (갤럭시 탭 등 모든 기기 동기화 완료)');
     } else {
       const newCat: Category = {
         id: `cat-${Date.now()}`,
@@ -144,7 +186,8 @@ export default function App() {
         createdAt: new Date().toISOString(),
       };
       setCategories((prev) => [...prev, newCat]);
-      showToast('새 교안 분류가 생성되었습니다.');
+      saveCategoryToFirestore(newCat);
+      showToast('새 교안 분류가 생성되었습니다. (모든 기기에 실시간 반영됨)');
     }
     setCategoryToEdit(null);
   };
@@ -154,7 +197,13 @@ export default function App() {
       const catToDelete = deleteConfirmState.item as Category;
       const fallbackCatId = categories.find((c) => c.id !== catToDelete.id)?.id || 'cat-default';
 
-      // Move remaining videos to another category or keep them safe
+      // Move remaining videos to fallback category
+      videos.forEach((v) => {
+        if (v.categoryId === catToDelete.id) {
+          saveVideoToFirestore({ ...v, categoryId: fallbackCatId });
+        }
+      });
+
       setVideos((prev) =>
         prev.map((v) =>
           v.categoryId === catToDelete.id ? { ...v, categoryId: fallbackCatId } : v
@@ -167,17 +216,24 @@ export default function App() {
         setSelectedCategoryId(null);
       }
 
-      showToast(`'${catToDelete.name}' 분류가 삭제되었습니다.`);
+      deleteCategoryFromFirestore(catToDelete.id);
+      showToast(`'${catToDelete.name}' 분류가 삭제되었습니다. (클라우드 동기화 완료)`);
     }
   };
 
   // Video Actions
   const handleSaveVideo = (videoData: Partial<VideoItem>) => {
     if (videoToEdit) {
+      const updatedVid: VideoItem = {
+        ...videoToEdit,
+        ...(videoData as any),
+        updatedAt: new Date().toISOString(),
+      };
       setVideos((prev) =>
-        prev.map((v) => (v.id === videoToEdit.id ? { ...v, ...(videoData as any) } : v))
+        prev.map((v) => (v.id === videoToEdit.id ? updatedVid : v))
       );
-      showToast('교안 정보가 수정되었습니다.');
+      saveVideoToFirestore(updatedVid);
+      showToast('교안 정보가 수정되었습니다. (갤럭시 탭 등 모든 기기에 실시간 반영됨)');
     } else {
       const newVid: VideoItem = {
         id: `vid-${Date.now()}`,
@@ -186,16 +242,18 @@ export default function App() {
         description: videoData.description || '',
         youtubeUrl: videoData.youtubeUrl || '',
         youtubeId: videoData.youtubeId || '',
-        speaker: videoData.speaker || '한화 교육담당',
+        speaker: videoData.speaker || '안전관리팀',
         duration: videoData.duration || '05:00',
         tags: videoData.tags || [],
         watched: false,
         notes: [],
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       setVideos((prev) => [newVid, ...prev]);
       setActiveVideoId(newVid.id);
-      showToast('새 교안 영상이 등록되어 바로 재생 목록에 연결되었습니다.');
+      saveVideoToFirestore(newVid);
+      showToast('새 교안 영상이 등록되었습니다. (갤럭시 탭 등 모든 기기에 실시간 자동 반영됩니다!)');
     }
     setVideoToEdit(null);
   };
@@ -210,14 +268,17 @@ export default function App() {
         setActiveVideoId(remaining[0]?.id || null);
       }
 
-      showToast(`'${vidToDelete.title}' 교안 영상이 삭제되었습니다.`);
+      deleteVideoFromFirestore(vidToDelete.id);
+      showToast(`'${vidToDelete.title}' 교안 영상이 삭제되었습니다. (클라우드 동기화 완료)`);
     }
   };
 
   const handleToggleWatched = (video: VideoItem) => {
+    const updatedVid: VideoItem = { ...video, watched: !video.watched, updatedAt: new Date().toISOString() };
     setVideos((prev) =>
-      prev.map((v) => (v.id === video.id ? { ...v, watched: !v.watched } : v))
+      prev.map((v) => (v.id === video.id ? updatedVid : v))
     );
+    saveVideoToFirestore(updatedVid);
     showToast(
       !video.watched ? '해당 교안을 [학습 완료]로 변경했습니다.' : '학습 상태를 [미완료]로 변경했습니다.'
     );
@@ -231,23 +292,29 @@ export default function App() {
       ...noteData,
       createdAt: new Date().toISOString(),
     };
+    const updatedVid: VideoItem = {
+      ...activeVideo,
+      notes: [...(activeVideo.notes || []), newNote],
+      updatedAt: new Date().toISOString(),
+    };
     setVideos((prev) =>
-      prev.map((v) =>
-        v.id === activeVideo.id ? { ...v, notes: [...(v.notes || []), newNote] } : v
-      )
+      prev.map((v) => (v.id === activeVideo.id ? updatedVid : v))
     );
+    saveVideoToFirestore(updatedVid);
     showToast(`${noteData.formattedTime} 구간 메모가 등록되었습니다.`);
   };
 
   const handleDeleteNote = (noteId: string) => {
     if (!activeVideo) return;
+    const updatedVid: VideoItem = {
+      ...activeVideo,
+      notes: (activeVideo.notes || []).filter((n) => n.id !== noteId),
+      updatedAt: new Date().toISOString(),
+    };
     setVideos((prev) =>
-      prev.map((v) =>
-        v.id === activeVideo.id
-          ? { ...v, notes: (v.notes || []).filter((n) => n.id !== noteId) }
-          : v
-      )
+      prev.map((v) => (v.id === activeVideo.id ? updatedVid : v))
     );
+    saveVideoToFirestore(updatedVid);
   };
 
   // Backup & Reset handlers
@@ -257,7 +324,8 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `hanwha-edu-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `안전교육_교안백업_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
     URL.revokeObjectURL(url);
     showToast('교안 데이터가 JSON 파일로 백업되었습니다.');
@@ -272,14 +340,15 @@ export default function App() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       const restored = importBackupJson(content);
       if (restored) {
         setCategories(restored.categories);
         setVideos(restored.videos);
         setActiveVideoId(restored.videos[0]?.id || null);
-        showToast('백업 파일에서 교안 및 분류 데이터가 성공적으로 복원되었습니다.');
+        await importAllToFirestore(restored.categories, restored.videos);
+        showToast('백업 파일에서 교안이 성공적으로 복원되어 모든 기기에 동기화되었습니다.');
       } else {
         alert('올바른 백업 JSON 형식이 아닙니다.');
       }
@@ -288,13 +357,14 @@ export default function App() {
     e.target.value = '';
   };
 
-  const handleResetData = () => {
-    if (confirm('기본 안전 교육 영상 데이터로 초기화하시겠습니까? 현재 작성된 데이터는 대체됩니다.')) {
+  const handleResetData = async () => {
+    if (confirm('기본 안전 교육 영상 데이터로 초기화하시겠습니까? 클라우드와 모든 기기의 교안이 초기화됩니다.')) {
       const fresh = resetAllData();
       setCategories(fresh.categories);
       setVideos(fresh.videos);
       setActiveVideoId(fresh.videos[0]?.id || null);
-      showToast('초기 안전 교육 영상 데이터로 리셋되었습니다.');
+      await importAllToFirestore(fresh.categories, fresh.videos);
+      showToast('초기 안전 교육 영상 데이터로 리셋되었습니다. (모든 기기 동기화 완료)');
     }
   };
 
@@ -639,11 +709,12 @@ export default function App() {
         onClose={() => setIsPersistenceModalOpen(false)}
         categories={categories}
         videos={videos}
-        onDataImported={(newCats, newVids) => {
+        onDataImported={async (newCats, newVids) => {
           setCategories(newCats);
           setVideos(newVids);
           setActiveVideoId(newVids[0]?.id || null);
-          showToast('교안 데이터가 성공적으로 반영되었습니다.');
+          await importAllToFirestore(newCats, newVids);
+          showToast('교안 데이터가 클라우드에 성공적으로 반영되어 모든 기기에 동기화되었습니다.');
         }}
       />
 

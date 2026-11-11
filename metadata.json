@@ -1,6 +1,6 @@
 {
-  "name": "한화 동영상 교안 플레이어",
-  "description": "유튜브 링크 기반의 직관적인 동영상 교안 학습 및 분류 관리 웹앱",
+  "name": "안전 교육 영상",
+  "description": "작업장 및 설비 안전 보건 동영상 교안 플레이어 웹앱",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

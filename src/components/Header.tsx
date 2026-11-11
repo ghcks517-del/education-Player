@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Download, Upload, Database } from 'lucide-react';
+import { RotateCcw, Download, Upload, Database, Cloud } from 'lucide-react';
 import { HanwhaLogo } from './HanwhaLogo';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -62,6 +62,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Actions (Data Options & Primary CTA) */}
         <div className="flex items-center gap-2.5 shrink-0">
+          {/* Cloud Real-time Sync Badge */}
+          <div
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-semibold shadow-2xs"
+            title="PC에서 올린 영상이 갤럭시 탭과 실시간으로 자동 동기화됩니다"
+          >
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <Cloud className="w-3.5 h-3.5 text-blue-600" />
+            <span>클라우드 실시간 동기화</span>
+          </div>
+
           {/* Tablet PWA Install Button */}
           <PWAInstallButton />
           {/* Data Management Menu Toggle */}

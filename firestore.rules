@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'order']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.order is number;
+    }
+
+    function isValidVideo(data) {
+      return data.keys().hasAll(['id', 'categoryId', 'title', 'youtubeUrl', 'youtubeId']) &&
+        data.id is string && isValidId(data.id) &&
+        data.categoryId is string && isValidId(data.categoryId) &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.youtubeUrl is string && data.youtubeUrl.size() <= 500 &&
+        data.youtubeId is string && data.youtubeId.size() <= 100;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isValidId(categoryId);
+      allow create, update: if isValidId(categoryId) && isValidCategory(request.resource.data);
+      allow delete: if isValidId(categoryId);
+    }
+
+    match /videos/{videoId} {
+      allow read: if isValidId(videoId);
+      allow create, update: if isValidId(videoId) && isValidVideo(request.resource.data);
+      allow delete: if isValidId(videoId);
+    }
+
+    // Allow connection test
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

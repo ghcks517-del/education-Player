@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "Category": {
+      "title": "Category",
+      "description": "A curriculum categorization entity for safety education videos.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the category"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the category",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the category",
+          "maxLength": 500
+        },
+        "color": {
+          "type": "string",
+          "description": "Hex color code for the category tag"
+        },
+        "order": {
+          "type": "number",
+          "description": "Display order index"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        }
+      },
+      "required": ["id", "name", "order"]
+    },
+    "VideoItem": {
+      "title": "VideoItem",
+      "description": "A safety education video item with YouTube link, metadata, and lecture notes.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the video"
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Associated category ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the video curriculum",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the video content",
+          "maxLength": 2000
+        },
+        "youtubeUrl": {
+          "type": "string",
+          "description": "Full YouTube URL"
+        },
+        "youtubeId": {
+          "type": "string",
+          "description": "Extracted YouTube video ID"
+        },
+        "duration": {
+          "type": "string",
+          "description": "Duration string e.g. 05:30"
+        },
+        "speaker": {
+          "type": "string",
+          "description": "Instructor or department name"
+        },
+        "tags": {
+          "type": "array",
+          "description": "List of tags associated with this video"
+        },
+        "watched": {
+          "type": "boolean",
+          "description": "Whether the video has been marked as watched"
+        },
+        "notes": {
+          "type": "array",
+          "description": "Array of timestamped notes"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "categoryId", "title", "youtubeUrl", "youtubeId"]
+    }
+  },
+  "firestore": {
+    "/categories/{categoryId}": {
+      "schema": {
+        "$ref": "#/entities/Category"
+      },
+      "description": "Top-level collection storing curriculum categories for real-time multi-device sync"
+    },
+    "/videos/{videoId}": {
+      "schema": {
+        "$ref": "#/entities/VideoItem"
+      },
+      "description": "Top-level collection storing video items for real-time multi-device sync"
+    }
+  }
+}
