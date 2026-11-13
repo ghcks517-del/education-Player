@@ -30,7 +30,7 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -46,13 +46,31 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-export async function testConnection() {
+export function formatFirestoreErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  if (raw.includes('permission-denied') || raw.includes('Missing or insufficient permissions')) {
+    return '클라우드 데이터베이스 접근 권한 오류입니다. 잠시 후 다시 시도해주세요.';
+  }
+  if (raw.includes('the client is offline') || raw.includes('unavailable') || raw.includes('Failed to fetch')) {
+    return '네트워크가 오프라인 상태이거나 클라우드 서버에 연결할 수 없습니다.';
+  }
+  if (raw.includes('Quota exceeded')) {
+    return '클라우드 일일 무료 사용량 한도에 도달했습니다. 내일 다시 시도해주세요.';
+  }
+  return '클라우드 동기화 중 오류가 발생했습니다. 네트워크 상태를 확인 후 다시 시도해주세요.';
+}
+
+export async function testConnection(): Promise<{ connected: boolean; error?: string }> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('Firestore connected successfully.');
+    return { connected: true };
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('the client is offline')) {
+      console.error('Firestore offline: Please check your Firebase configuration or network.');
+    } else {
+      console.error('Firestore connection test failed:', msg);
     }
+    return { connected: false, error: msg };
   }
 }

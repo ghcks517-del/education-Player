@@ -12,35 +12,57 @@ service cloud.firestore {
 
     function isValidCategory(data) {
       return data.keys().hasAll(['id', 'name', 'order']) &&
+        data.keys().hasOnly(['id', 'name', 'description', 'color', 'order', 'createdAt']) &&
         data.id is string && isValidId(data.id) &&
         data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-        data.order is number;
+        data.order is number &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+        (!('color' in data) || (data.color is string && data.color.size() <= 50)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64));
     }
 
     function isValidVideo(data) {
       return data.keys().hasAll(['id', 'categoryId', 'title', 'youtubeUrl', 'youtubeId']) &&
+        data.keys().hasOnly([
+          'id', 'categoryId', 'title', 'description', 'youtubeUrl', 'youtubeId',
+          'duration', 'speaker', 'tags', 'watched', 'notes', 'createdAt', 'updatedAt'
+        ]) &&
         data.id is string && isValidId(data.id) &&
         data.categoryId is string && isValidId(data.categoryId) &&
         data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
         data.youtubeUrl is string && data.youtubeUrl.size() <= 500 &&
-        data.youtubeId is string && data.youtubeId.size() <= 100;
+        data.youtubeId is string && data.youtubeId.size() <= 100 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+        (!('duration' in data) || (data.duration is string && data.duration.size() <= 32)) &&
+        (!('speaker' in data) || (data.speaker is string && data.speaker.size() <= 100)) &&
+        (!('tags' in data) || (data.tags is list && data.tags.size() <= 20 && (data.tags.size() == 0 || data.tags[0] is string))) &&
+        (!('watched' in data) || data.watched is bool) &&
+        (!('notes' in data) || (data.notes is list && data.notes.size() <= 200 && (data.notes.size() == 0 || data.notes[0] is map))) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
     match /categories/{categoryId} {
-      allow read: if isValidId(categoryId);
-      allow create, update: if isValidId(categoryId) && isValidCategory(request.resource.data);
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create, update: if isValidId(categoryId) &&
+        isValidCategory(request.resource.data) &&
+        request.resource.data.id == categoryId;
       allow delete: if isValidId(categoryId);
     }
 
     match /videos/{videoId} {
-      allow read: if isValidId(videoId);
-      allow create, update: if isValidId(videoId) && isValidVideo(request.resource.data);
+      allow get: if isValidId(videoId);
+      allow list: if true;
+      allow create, update: if isValidId(videoId) &&
+        isValidVideo(request.resource.data) &&
+        request.resource.data.id == videoId;
       allow delete: if isValidId(videoId);
     }
 
     // Allow connection test
     match /test/{docId} {
-      allow read, write: if true;
+      allow get: if docId == 'connection';
     }
   }
 }
