@@ -4,6 +4,7 @@ import { INITIAL_CATEGORIES, INITIAL_VIDEOS } from './initialData';
 const STORAGE_KEY_CATEGORIES = 'hanwha_player_categories_v1';
 const STORAGE_KEY_VIDEOS = 'hanwha_player_videos_v1';
 const STORAGE_KEY_ACTIVE_VIDEO = 'hanwha_player_active_video_id';
+const STORAGE_KEY_LOOP_CATEGORY = 'hanwha_player_loop_category_id';
 
 export function loadCategories(): Category[] {
   try {
@@ -56,6 +57,26 @@ export function loadLastActiveVideoId(): string | null {
 export function saveLastActiveVideoId(id: string): void {
   try {
     localStorage.setItem(STORAGE_KEY_ACTIVE_VIDEO, id);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+export function loadLoopCategoryId(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY_LOOP_CATEGORY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveLoopCategoryId(id: string | null): void {
+  try {
+    if (id) {
+      localStorage.setItem(STORAGE_KEY_LOOP_CATEGORY, id);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_LOOP_CATEGORY);
+    }
   } catch (e) {
     console.error(e);
   }

@@ -15,6 +15,8 @@ import {
   ArrowRight,
   ChevronDown,
   Layers,
+  Repeat,
+  X,
 } from 'lucide-react';
 import { Category, VideoItem, VideoNote } from './types';
 import {
@@ -24,6 +26,8 @@ import {
   saveVideos,
   loadLastActiveVideoId,
   saveLastActiveVideoId,
+  loadLoopCategoryId,
+  saveLoopCategoryId,
   resetAllData,
   exportBackupJson,
   importBackupJson,
@@ -54,6 +58,7 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>(loadCategories);
   const [videos, setVideos] = useState<VideoItem[]>(loadVideos);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [loopCategoryId, setLoopCategoryId] = useState<string | null>(() => loadLoopCategoryId());
   const [activeVideoId, setActiveVideoId] = useState<string | null>(() => {
     const saved = loadLastActiveVideoId();
     if (saved && videos.some((v) => v.id === saved)) {
@@ -132,6 +137,17 @@ export default function App() {
     }
   }, [activeVideoId]);
 
+  useEffect(() => {
+    saveLoopCategoryId(loopCategoryId);
+  }, [loopCategoryId]);
+
+  // Clear loopCategoryId if the category no longer exists
+  useEffect(() => {
+    if (loopCategoryId && categories.length > 0 && !categories.some((c) => c.id === loopCategoryId)) {
+      setLoopCategoryId(null);
+    }
+  }, [categories, loopCategoryId]);
+
   // Show toast notification
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -143,28 +159,92 @@ export default function App() {
   // Find active video
   const activeVideo = videos.find((v) => v.id === activeVideoId) || null;
 
-  // Filtered video list according to category
+  // Filtered video list according to category view
   const activeCategoryVideos = selectedCategoryId
     ? videos.filter((v) => v.categoryId === selectedCategoryId)
     : videos;
 
-  // Navigation: Next / Prev video in current active list
+  // Loop category playback state
+  const loopCategory = loopCategoryId
+    ? categories.find((c) => c.id === loopCategoryId) || null
+    : null;
+  const loopCategoryVideos = loopCategoryId
+    ? videos.filter((v) => v.categoryId === loopCategoryId)
+    : [];
+  const isCategoryLoopActive = !!(loopCategory && loopCategoryVideos.length > 0);
+  const isSingleVideoLoop = isCategoryLoopActive && loopCategoryVideos.length === 1;
+
+  // Playback queue: locked strictly to loopCategoryVideos when category loop is active
+  const playbackVideos = isCategoryLoopActive ? loopCategoryVideos : activeCategoryVideos;
+
+  // Navigation: Next / Prev video in active playback list
   const currentVideoIndex = activeCategoryVideos.findIndex((v) => v.id === activeVideoId);
-  const hasNext = currentVideoIndex >= 0 && currentVideoIndex < activeCategoryVideos.length - 1;
-  const hasPrev = currentVideoIndex > 0;
+  const currentPlaybackIndex = playbackVideos.findIndex((v) => v.id === activeVideoId);
+
+  const hasNext = isCategoryLoopActive
+    ? loopCategoryVideos.length > 0
+    : currentPlaybackIndex >= 0 && currentPlaybackIndex < playbackVideos.length - 1;
+  const hasPrev = isCategoryLoopActive
+    ? loopCategoryVideos.length > 1
+    : currentPlaybackIndex > 0;
 
   const handleNextVideo = () => {
-    if (hasNext) {
-      const nextVid = activeCategoryVideos[currentVideoIndex + 1];
+    if (isCategoryLoopActive) {
+      if (loopCategoryVideos.length === 0) return;
+      const nextIdx =
+        currentPlaybackIndex >= 0
+          ? (currentPlaybackIndex + 1) % loopCategoryVideos.length
+          : 0;
+      setActiveVideoId(loopCategoryVideos[nextIdx].id);
+    } else if (hasNext) {
+      const nextVid = playbackVideos[currentPlaybackIndex + 1];
       setActiveVideoId(nextVid.id);
     }
   };
 
   const handlePrevVideo = () => {
-    if (hasPrev) {
-      const prevVid = activeCategoryVideos[currentVideoIndex - 1];
+    if (isCategoryLoopActive) {
+      if (loopCategoryVideos.length === 0) return;
+      const prevIdx =
+        currentPlaybackIndex >= 0
+          ? (currentPlaybackIndex - 1 + loopCategoryVideos.length) % loopCategoryVideos.length
+          : 0;
+      setActiveVideoId(loopCategoryVideos[prevIdx].id);
+    } else if (hasPrev) {
+      const prevVid = playbackVideos[currentPlaybackIndex - 1];
       setActiveVideoId(prevVid.id);
     }
+  };
+
+  const handleToggleLoopCategory = (categoryId: string) => {
+    if (loopCategoryId === categoryId) {
+      setLoopCategoryId(null);
+      showToast('분류 반복 연속 재생이 해제되었습니다.');
+      return;
+    }
+
+    const targetCat = categories.find((c) => c.id === categoryId);
+    const catVideos = videos.filter((v) => v.categoryId === categoryId);
+
+    if (catVideos.length === 0) {
+      showToast(`'${targetCat?.name || '선택한 분류'}'에 등록된 영상이 없습니다. 영상을 먼저 추가해주세요.`);
+      return;
+    }
+
+    setLoopCategoryId(categoryId);
+    setSelectedCategoryId(categoryId);
+    if (!catVideos.some((v) => v.id === activeVideoId)) {
+      setActiveVideoId(catVideos[0].id);
+    }
+    showToast(`'${targetCat?.name || '선택한 분류'}' 분류 영상(${catVideos.length}개)만 반복 연속 재생합니다.`);
+  };
+
+  const handleSelectVideoSafely = (vid: VideoItem) => {
+    if (loopCategoryId && vid.categoryId !== loopCategoryId) {
+      setLoopCategoryId(null);
+      showToast('다른 분류의 영상을 선택하여 분류 반복 재생이 해제되었습니다.');
+    }
+    setActiveVideoId(vid.id);
   };
 
   // Category Actions
@@ -214,6 +294,10 @@ export default function App() {
 
       if (selectedCategoryId === catToDelete.id) {
         setSelectedCategoryId(null);
+      }
+
+      if (loopCategoryId === catToDelete.id) {
+        setLoopCategoryId(null);
       }
 
       deleteCategoryFromFirestore(catToDelete.id);
@@ -416,7 +500,25 @@ export default function App() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isCategoryLoopActive && loopCategory && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-[#F37321]/40 text-[#F37321] rounded-lg text-xs font-semibold shadow-2xs">
+                <Repeat className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {loopCategory.name} ({loopCategoryVideos.length}개) 반복 연속 재생 중
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLoopCategoryId(null)}
+                  className="p-0.5 rounded hover:bg-[#F37321]/15 text-[#F37321]"
+                  title="분류 반복 재생 해제"
+                  aria-label="분류 반복 재생 해제"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <button
               onClick={() => {
                 setVideoToEdit(null);
@@ -446,6 +548,9 @@ export default function App() {
               onToggleTheaterMode={() => setIsTheaterMode(false)}
               seekToTime={seekTime}
               onSeekCompleted={() => setSeekTime(null)}
+              loopCategoryName={isCategoryLoopActive ? loopCategory?.name : null}
+              isSingleVideoLoop={isSingleVideoLoop}
+              onClearLoopCategory={() => setLoopCategoryId(null)}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -464,7 +569,9 @@ export default function App() {
                 <CategoryNav
                   categories={categories}
                   selectedCategoryId={selectedCategoryId}
+                  loopCategoryId={loopCategoryId}
                   onSelectCategory={setSelectedCategoryId}
+                  onToggleLoopCategory={handleToggleLoopCategory}
                   onOpenCreateCategory={() => {
                     setCategoryToEdit(null);
                     setIsCategoryModalOpen(true);
@@ -503,6 +610,9 @@ export default function App() {
                 onToggleTheaterMode={() => setIsTheaterMode(true)}
                 seekToTime={seekTime}
                 onSeekCompleted={() => setSeekTime(null)}
+                loopCategoryName={isCategoryLoopActive ? loopCategory?.name : null}
+                isSingleVideoLoop={isSingleVideoLoop}
+                onClearLoopCategory={() => setLoopCategoryId(null)}
               />
 
               {/* Timestamped Lecture Notes */}
@@ -523,7 +633,9 @@ export default function App() {
               <CategoryNav
                 categories={categories}
                 selectedCategoryId={selectedCategoryId}
+                loopCategoryId={loopCategoryId}
                 onSelectCategory={setSelectedCategoryId}
+                onToggleLoopCategory={handleToggleLoopCategory}
                 onOpenCreateCategory={() => {
                   setCategoryToEdit(null);
                   setIsCategoryModalOpen(true);
@@ -544,16 +656,37 @@ export default function App() {
 
               {/* Up Next Mini Playlist in Current Classification */}
               <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-[#F37321]" />
-                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <div className="flex items-center justify-between gap-2 mb-3 px-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BookOpen className="w-4 h-4 text-[#F37321] shrink-0" />
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider truncate">
                       현재 분류 교안 목록 ({activeCategoryVideos.length})
                     </h3>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    {currentVideoIndex >= 0 ? `${currentVideoIndex + 1}/${activeCategoryVideos.length}` : ''}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {selectedCategoryId && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLoopCategory(selectedCategoryId)}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border transition-colors ${
+                          loopCategoryId === selectedCategoryId
+                            ? 'bg-[#F37321] text-white border-[#F37321]'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#F37321] hover:text-[#F37321]'
+                        }`}
+                        title={
+                          loopCategoryId === selectedCategoryId
+                            ? '현재 분류 반복 연속 재생 해제'
+                            : '현재 분류의 영상만 반복 연속 재생'
+                        }
+                      >
+                        <Repeat className="w-3 h-3" />
+                        <span>{loopCategoryId === selectedCategoryId ? '반복 중' : '분류 반복'}</span>
+                      </button>
+                    )}
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {currentVideoIndex >= 0 ? `${currentVideoIndex + 1}/${activeCategoryVideos.length}` : ''}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
@@ -562,7 +695,7 @@ export default function App() {
                     return (
                       <button
                         key={vid.id}
-                        onClick={() => setActiveVideoId(vid.id)}
+                        onClick={() => handleSelectVideoSafely(vid)}
                         className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
                           isActive
                             ? 'bg-orange-50 border border-orange-200 text-slate-900 font-medium'
@@ -606,7 +739,7 @@ export default function App() {
             categories={categories}
             activeVideoId={activeVideoId}
             onSelectVideo={(vid) => {
-              setActiveVideoId(vid.id);
+              handleSelectVideoSafely(vid);
               // Scroll smoothly to video player
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}

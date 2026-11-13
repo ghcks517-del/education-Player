@@ -15,6 +15,9 @@ import {
   Bookmark,
   Tv,
   HelpCircle,
+  ArrowLeft,
+  Repeat,
+  X,
 } from 'lucide-react';
 import { VideoItem } from '../types';
 import { formatSeconds } from '../utils/youtube';
@@ -31,6 +34,9 @@ interface VideoPlayerProps {
   onToggleTheaterMode: () => void;
   seekToTime?: number | null;
   onSeekCompleted?: () => void;
+  loopCategoryName?: string | null;
+  isSingleVideoLoop?: boolean;
+  onClearLoopCategory?: () => void;
 }
 
 // Declare YouTube API window types
@@ -53,6 +59,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onToggleTheaterMode,
   seekToTime,
   onSeekCompleted,
+  loopCategoryName = null,
+  isSingleVideoLoop = false,
+  onClearLoopCategory,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
@@ -71,6 +80,43 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showSpeedMenu, setShowSpeedMenu] = useState<boolean>(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState<boolean>(false);
   const [autoPlayNext, setAutoPlayNext] = useState<boolean>(true);
+
+  // Keep latest values in refs so YouTube Player callbacks never read stale closures
+  const videoRef = useRef(video);
+  const onNextRef = useRef(onNext);
+  const hasNextRef = useRef(hasNext);
+  const autoPlayNextRef = useRef(autoPlayNext);
+  const onToggleWatchedRef = useRef(onToggleWatched);
+  const isCategoryLoopRef = useRef(!!loopCategoryName);
+  const isSingleVideoLoopRef = useRef(isSingleVideoLoop);
+
+  useEffect(() => {
+    videoRef.current = video;
+  }, [video]);
+
+  useEffect(() => {
+    onNextRef.current = onNext;
+  }, [onNext]);
+
+  useEffect(() => {
+    hasNextRef.current = hasNext;
+  }, [hasNext]);
+
+  useEffect(() => {
+    autoPlayNextRef.current = autoPlayNext;
+  }, [autoPlayNext]);
+
+  useEffect(() => {
+    onToggleWatchedRef.current = onToggleWatched;
+  }, [onToggleWatched]);
+
+  useEffect(() => {
+    isCategoryLoopRef.current = !!loopCategoryName;
+  }, [loopCategoryName]);
+
+  useEffect(() => {
+    isSingleVideoLoopRef.current = isSingleVideoLoop;
+  }, [isSingleVideoLoop]);
 
   // Load YouTube IFrame API once
   useEffect(() => {
@@ -150,11 +196,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 setIsPlaying(false);
               } else if (event.data === 0) {
                 setIsPlaying(false);
-                if (video && onToggleWatched && !video.watched) {
-                  onToggleWatched(video);
+                const currVid = videoRef.current;
+                if (currVid && onToggleWatchedRef.current && !currVid.watched) {
+                  onToggleWatchedRef.current(currVid);
                 }
-                if (autoPlayNext && onNext && hasNext) {
-                  onNext();
+                const shouldAdvance = autoPlayNextRef.current || isCategoryLoopRef.current;
+                if (shouldAdvance) {
+                  if (isCategoryLoopRef.current && isSingleVideoLoopRef.current && playerRef.current) {
+                    playerRef.current.seekTo(0, true);
+                    playerRef.current.playVideo();
+                  } else if (onNextRef.current && hasNextRef.current) {
+                    onNextRef.current();
+                  }
                 }
               }
             },
@@ -164,7 +217,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         console.error('Error initializing YT Player:', err);
       }
     }
-  }, [video?.youtubeId, isApiReady]);
+  }, [video?.id, video?.youtubeId, isApiReady]);
 
   // Handle external seek requests (e.g. clicking a timestamp note)
   useEffect(() => {
@@ -207,7 +260,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
   }, []);
 
   // Keyboard shortcuts handler
@@ -229,6 +286,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         toggleFullscreen();
+      } else if (e.key === 'Escape' || e.key === 'Esc') {
+        if (isFullscreen) {
+          e.preventDefault();
+          toggleFullscreen();
+        }
       } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         toggleMute();
@@ -249,7 +311,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, volume, isMuted, currentTime, duration]);
+  }, [isPlaying, volume, isMuted, currentTime, duration, isFullscreen]);
 
   // Player action handlers
   const togglePlayPause = useCallback(() => {
@@ -310,16 +372,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // MANDATORY: Fullscreen toggle
   const toggleFullscreen = () => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      setIsFullscreen((prev) => !prev);
+      return;
+    }
 
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch((err) => {
-        console.warn('Fullscreen request failed:', err);
-      });
+    if (!document.fullscreenElement && !isFullscreen) {
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current
+          .requestFullscreen()
+          .then(() => setIsFullscreen(true))
+          .catch((err) => {
+            console.warn('Fullscreen request failed, applying CSS fullscreen:', err);
+            setIsFullscreen(true);
+          });
+      } else {
+        setIsFullscreen(true);
+      }
     } else {
-      document.exitFullscreen().catch((err) => {
-        console.warn('Exit fullscreen failed:', err);
-      });
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch((err) => {
+          console.warn('Exit fullscreen failed:', err);
+        });
+      }
+      setIsFullscreen(false);
     }
   };
 
@@ -377,11 +453,46 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div
       ref={containerRef}
       className={`relative w-full rounded-xl overflow-hidden bg-white border border-slate-200 shadow-md transition-all duration-300 ${
-        isFullscreen ? 'fixed inset-0 z-50 rounded-none border-none' : ''
+        isFullscreen
+          ? 'fixed inset-0 z-50 rounded-none border-none bg-black flex flex-col justify-between w-screen h-screen'
+          : ''
       }`}
     >
+      {/* Fullscreen Top-Left Transparent Gray Back Arrow Button */}
+      {isFullscreen && (
+        <div className="absolute top-4 left-4 z-50 flex items-center gap-2.5 pointer-events-auto animate-in fade-in duration-200">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-slate-900/60 hover:bg-slate-900/85 active:bg-slate-900 text-white/95 hover:text-white backdrop-blur-md border border-white/20 shadow-2xl transition-all duration-200 active:scale-95 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/40"
+            title="전체화면 종료 (뒤로가기 / ESC)"
+            aria-label="전체화면 뒤로가기"
+          >
+            <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+            <span className="text-xs font-semibold tracking-tight text-white/95">뒤로가기</span>
+          </button>
+
+          {video?.title && (
+            <div className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/50 backdrop-blur-md border border-white/10 text-white/80 text-xs truncate max-w-md pointer-events-none shadow-lg">
+              <span className="w-2 h-2 rounded-full bg-[#F37321] shrink-0 animate-pulse" />
+              <span className="truncate font-medium">{video.title}</span>
+              {loopCategoryName && (
+                <span className="ml-1 px-2 py-0.5 rounded-full bg-[#F37321]/90 text-white text-[10px] font-semibold flex items-center gap-1 shrink-0">
+                  <Repeat className="w-2.5 h-2.5" />
+                  <span>{loopCategoryName} 반복</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Aspect Ratio 16:9 Video Canvas */}
-      <div className="relative w-full aspect-video bg-black flex items-center justify-center">
+      <div
+        className={`relative w-full ${
+          isFullscreen ? 'flex-1 h-full min-h-0' : 'aspect-video'
+        } bg-black flex items-center justify-center`}
+      >
         {/* YouTube Player mounting node */}
         <div ref={iframeContainerRef} className="w-full h-full">
           <div id="yt-player-element" className="w-full h-full" />
@@ -653,12 +764,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           )}
         </div>
 
-        {/* Watched Toggle and Next Auto play */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Watched Toggle, Category Loop Badge and Next Auto play */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {loopCategoryName && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-50 border border-[#F37321]/40 text-[#F37321] text-xs font-semibold">
+              <Repeat className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate max-w-[140px]">{loopCategoryName} 반복 중</span>
+              {onClearLoopCategory && (
+                <button
+                  type="button"
+                  onClick={onClearLoopCategory}
+                  className="ml-0.5 p-0.5 rounded hover:bg-[#F37321]/15 text-[#F37321]"
+                  title="분류 반복 재생 해제"
+                  aria-label="분류 반복 재생 해제"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+
           <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800 select-none">
             <input
               type="checkbox"
-              checked={autoPlayNext}
+              checked={autoPlayNext || !!loopCategoryName}
+              disabled={!!loopCategoryName}
               onChange={(e) => setAutoPlayNext(e.target.checked)}
               className="rounded accent-[#F37321]"
             />
